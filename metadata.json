@@ -1,0 +1,6 @@
+{
+  "name": "TapCard - NFC Digital Business Cards",
+  "description": "Next-generation NFC digital business card and profile platform for professionals and teams.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

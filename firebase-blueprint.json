@@ -1,0 +1,336 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered platform user record for authentication and RBAC mapping.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "User email address"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "User display name"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "admin", "customer"],
+          "description": "Access role in the platform"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the user account was initialized"
+        }
+      },
+      "required": ["email", "name", "role", "createdAt"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "Customer digital business card profile accessible via /u/:username.",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{3,30}$",
+          "maxLength": 30,
+          "description": "Unique username slug for public URL"
+        },
+        "fullName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Full name displayed on digital card"
+        },
+        "profileImage": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Public URL to avatar or photo"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Job title or role"
+        },
+        "company": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Company, organization, or brand"
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Short bio or intro"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Primary phone number"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Direct contact email"
+        },
+        "whatsapp": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "WhatsApp contact number with country code"
+        },
+        "website": {
+          "type": "string",
+          "maxLength": 255,
+          "description": "Website or portfolio URL"
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 120,
+          "description": "Location (city, country)"
+        },
+        "theme": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Visual theme identifier (e.g., onyx, emerald, obsidian, modern-slate)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when profile was created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when profile was last updated"
+        }
+      },
+      "required": ["username", "fullName", "email", "createdAt", "updatedAt"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "Physical NFC card record mapping unique NFC URL (/c/:cardId) to customer profile.",
+      "type": "object",
+      "properties": {
+        "cardId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{4,32}$",
+          "description": "Unique NFC card hardware code (e.g. TC000123)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the owning customer, or null if unassigned"
+        },
+        "profileId": {
+          "type": "string",
+          "description": "Target profile ID / username linked to this card"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["unassigned", "active", "suspended", "lost"],
+          "description": "Card lifecycle status"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "activatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Activation timestamp"
+        }
+      },
+      "required": ["cardId", "status", "createdAt"]
+    },
+    "Link": {
+      "title": "Link",
+      "description": "Custom link, social profile, or action item on customer digital business card.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the owner"
+        },
+        "type": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Link type: social, custom, booking, document, payment, etc."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Button display label"
+        },
+        "url": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Destination URL"
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Icon identifier (e.g., linkedin, instagram, github, globe)"
+        },
+        "order": {
+          "type": "number",
+          "description": "Sort order index"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the link is visible"
+        }
+      },
+      "required": ["userId", "type", "title", "url", "order", "enabled"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Contact captured from visitors exchanging their info on the customer's digital card.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Profile owner UID who received this lead"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Visitor full name"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Visitor email"
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Visitor phone"
+        },
+        "company": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Visitor company"
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Optional message or context"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of capture"
+        }
+      },
+      "required": ["userId", "name", "email", "createdAt"]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Tap and view telemetry event record.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Profile owner UID"
+        },
+        "profileId": {
+          "type": "string",
+          "description": "Profile username or ID"
+        },
+        "cardId": {
+          "type": "string",
+          "description": "NFC card ID if tapped, or null for direct link"
+        },
+        "eventType": {
+          "type": "string",
+          "enum": ["nfc_tap", "page_view", "save_contact", "link_click", "lead_submission"],
+          "description": "Telemetry event category"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event timestamp"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Contextual metadata (e.g. referrer, device type, target link)"
+        }
+      },
+      "required": ["userId", "eventType", "timestamp"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Physical NFC card order placed by customer.",
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "description": "Order identifier"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Customer UID"
+        },
+        "cardType": {
+          "type": "string",
+          "enum": ["matte_black", "metallic_silver", "bamboo_wood", "custom_print"],
+          "description": "Physical card material and style"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Number of cards ordered"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "processing", "encoded", "shipped", "delivered", "cancelled"],
+          "description": "Fulfillment status"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Order price in currency"
+        },
+        "shippingAddress": {
+          "type": "object",
+          "description": "Customer delivery address"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Order placement timestamp"
+        }
+      },
+      "required": ["orderId", "userId", "cardType", "quantity", "status", "amount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Private user account records"
+    },
+    "/profiles/{userId}": {
+      "schema": { "$ref": "#/entities/Profile" },
+      "description": "Customer public digital profile"
+    },
+    "/cards/{cardId}": {
+      "schema": { "$ref": "#/entities/Card" },
+      "description": "NFC hardware card registry"
+    },
+    "/links/{linkId}": {
+      "schema": { "$ref": "#/entities/Link" },
+      "description": "Custom links belonging to customer profile"
+    },
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Contacts exchanged by card visitors"
+    },
+    "/analytics/{eventId}": {
+      "schema": { "$ref": "#/entities/Analytics" },
+      "description": "Anonymous usage and tap analytics"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Physical card orders and fulfillment"
+    }
+  }
+}

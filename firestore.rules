@@ -1,0 +1,211 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // GLOBAL SECURITY GUARDS & HELPER FUNCTIONS
+    // =========================================================================
+
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'anshalkale99@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // =========================================================================
+    // VALIDATION BLUEPRINTS
+    // =========================================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'name', 'role', 'createdAt']) &&
+        data.email is string && data.email.size() <= 120 &&
+        data.name is string && data.name.size() <= 100 &&
+        data.role in ['user', 'admin', 'customer'];
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasAll(['username', 'fullName', 'email']) &&
+        data.username is string && data.username.size() >= 3 && data.username.size() <= 30 &&
+        data.fullName is string && data.fullName.size() <= 100 &&
+        data.email is string && data.email.size() <= 120;
+    }
+
+    function isValidCard(data) {
+      return data.keys().hasAll(['cardId', 'status', 'createdAt']) &&
+        data.cardId is string && data.cardId.size() >= 4 && data.cardId.size() <= 32 &&
+        data.status in ['unassigned', 'active', 'suspended', 'lost'];
+    }
+
+    function isValidLink(data) {
+      return data.keys().hasAll(['userId', 'type', 'title', 'url', 'order', 'enabled']) &&
+        data.userId is string &&
+        data.type is string && data.type.size() <= 50 &&
+        data.title is string && data.title.size() <= 100 &&
+        data.url is string && data.url.size() <= 500 &&
+        data.order is number &&
+        data.enabled is bool;
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['userId', 'name', 'email', 'createdAt']) &&
+        data.userId is string &&
+        data.name is string && data.name.size() <= 100 &&
+        data.email is string && data.email.size() <= 120;
+    }
+
+    function isValidAnalytics(data) {
+      return data.keys().hasAll(['userId', 'eventType', 'timestamp']) &&
+        data.userId is string &&
+        data.eventType in ['nfc_tap', 'page_view', 'save_contact', 'link_click', 'lead_submission', 'profile_view', 'card_redirect', 'contact_action'];
+    }
+
+    // =========================================================================
+    // ADMINS COLLECTION
+    // =========================================================================
+    match /admins/{adminId} {
+      allow get: if isOwner(adminId) || isAdmin();
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // USERS COLLECTION (Private account data & RBAC)
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Allow authenticated user to create and update their own record
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // PROFILES COLLECTION (Public business card profiles)
+    // =========================================================================
+    match /profiles/{profileId} {
+      // Public profile access for NFC taps & web visitors
+      allow get: if true;
+      allow list: if true;
+
+      allow create, update: if isSignedIn() && (
+        request.auth.uid == profileId ||
+        incoming().userId == request.auth.uid
+      );
+
+      allow delete: if isOwner(profileId) || (isSignedIn() && existing().userId == request.auth.uid) || isAdmin();
+    }
+
+    // =========================================================================
+    // USERNAMES MAPPING COLLECTION (Maps public username slug to userId)
+    // =========================================================================
+    match /usernames/{username} {
+      allow get: if true;
+      allow list: if true;
+      allow write: if isSignedIn();
+    }
+
+    // =========================================================================
+    // CARDS COLLECTION (NFC hardware cards registry)
+    // =========================================================================
+    match /cards/{cardId} {
+      // Direct NFC tap needs to resolve card information
+      allow get: if true;
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // Only admins can provision hardware cards
+      allow create: if isAdmin() && isValidCard(incoming());
+
+      // Users can link/assign active cards assigned to their account; Admins can edit any
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        isValidCard(incoming()) &&
+        incoming().createdAt == existing().createdAt
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // LINKS COLLECTION (Profile custom & social links)
+    // =========================================================================
+    match /links/{linkId} {
+      allow get: if true;
+      allow list: if true; // Profile pages query links by userId/profileId
+
+      allow create: if isSignedIn() &&
+        incoming().userId == request.auth.uid &&
+        isValidLink(incoming());
+
+      allow update: if isSignedIn() &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == request.auth.uid &&
+        isValidLink(incoming());
+
+      allow delete: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // =========================================================================
+    // LEADS COLLECTION (Contacts captured from card visitors)
+    // =========================================================================
+    match /leads/{leadId} {
+      // Card visitors can exchange their contact details
+      allow create: if isValidLead(incoming());
+
+      // Only the card owner (or admin) can read and manage their captured leads
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+
+    // =========================================================================
+    // ANALYTICS COLLECTION (Tap & view event logging)
+    // =========================================================================
+    match /analytics/{eventId} {
+      allow create: if isValidAnalytics(incoming());
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // ORDERS COLLECTION (Physical NFC card orders)
+    // =========================================================================
+    match /orders/{orderId} {
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

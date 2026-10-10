@@ -1,0 +1,24 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Profile Images: users/{userId}/profile/{fileName}
+    match /users/{userId}/profile/{fileName} {
+      // Public read access allows visitors to view avatars on digital business cards
+      allow read: if true;
+
+      // Restrict upload to the authenticated owner with strict size & MIME type validation
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|jpg|png|webp).*');
+
+      // Allow owner to delete their previous image
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default deny for all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
